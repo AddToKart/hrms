@@ -1,32 +1,12 @@
 import express from "express";
 import cors from "cors";
-import helmet from "helmet";
-import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import { testConnection, initializeDatabase } from "./config/database.js";
-
-// Import routes
-import employeeRoutes from "./routes/employees.js";
-import attendanceRoutes from "./routes/attendance.js";
-import leaveRoutes from "./routes/leaveRequests.js";
-import payrollRoutes from "./routes/payroll.js";
-import dashboardRoutes from "./routes/dashboard.js";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
-// Security middleware
-app.use(helmet());
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: "Too many requests from this IP, please try again later.",
-});
-app.use(limiter);
 
 // CORS configuration
 app.use(
@@ -37,8 +17,8 @@ app.use(
 );
 
 // Body parsing middleware
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -46,15 +26,47 @@ app.get("/health", (req, res) => {
     status: "OK",
     message: "HRMS API is running",
     timestamp: new Date().toISOString(),
+    database: "MySQL",
   });
 });
 
-// API routes
-app.use("/api/employees", employeeRoutes);
-app.use("/api/attendance", attendanceRoutes);
-app.use("/api/leave-requests", leaveRoutes);
-app.use("/api/payroll", payrollRoutes);
-app.use("/api/dashboard", dashboardRoutes);
+// Database test endpoint
+app.get("/test-db", async (req, res) => {
+  try {
+    const isConnected = await testConnection();
+    if (isConnected) {
+      res.status(200).json({
+        status: "success",
+        message: "Database connection successful",
+        database: process.env.DB_NAME,
+        host: process.env.DB_HOST,
+      });
+    } else {
+      res.status(500).json({
+        status: "error",
+        message: "Database connection failed",
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Database test failed",
+      error: error.message,
+    });
+  }
+});
+
+// Root endpoint
+app.get("/", (req, res) => {
+  res.json({
+    message: "HRMS Backend API",
+    version: "1.0.0",
+    endpoints: {
+      health: "/health",
+      database_test: "/test-db",
+    },
+  });
+});
 
 // 404 handler
 app.use("*", (req, res) => {
@@ -70,35 +82,56 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({
     status: "error",
     message: err.message || "Internal server error",
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 });
 
 // Start server
 const startServer = async () => {
   try {
-    // Test database connection
-    const dbConnected = await testConnection();
-    if (!dbConnected) {
-      console.error(
-        "❌ Failed to connect to database. Please check your configuration."
-      );
-      process.exit(1);
-    }
+    console.log("🚀 Starting HRMS Backend Server...");
+    console.log("=" * 50);
 
-    // Initialize database tables
-    await initializeDatabase();
+    // Test database connection
+    console.log("\n📊 Testing Database Connection:");
+    const dbConnected = await testConnection();
+
+    if (dbConnected) {
+      console.log("\n🏗️  Setting up database:");
+      await initializeDatabase();
+    } else {
+      console.log(
+        "\n⚠️  Database connection failed, but server will start anyway"
+      );
+      console.log(
+        "   You can fix the database issue and test again via /test-db endpoint"
+      );
+    }
 
     // Start listening
     app.listen(PORT, () => {
-      console.log(`🚀 HRMS API Server running on port ${PORT}`);
-      console.log(`📊 Health check: http://localhost:${PORT}/health`);
-      console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL}`);
+      console.log("\n" + "=" * 50);
+      console.log(`✅ HRMS API Server running on port ${PORT}`);
+      console.log(`🌐 Server URL: http://localhost:${PORT}`);
+      console.log(`📋 Health check: http://localhost:${PORT}/health`);
+      console.log(`🔧 Database test: http://localhost:${PORT}/test-db`);
+      console.log(`🎯 Frontend URL: ${process.env.FRONTEND_URL}`);
+      console.log("=" * 50);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error.message);
     process.exit(1);
   }
 };
+
+// Graceful shutdown
+process.on("SIGINT", () => {
+  console.log("\n🛑 Received SIGINT. Graceful shutdown...");
+  process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+  console.log("\n🛑 Received SIGTERM. Graceful shutdown...");
+  process.exit(0);
+});
 
 startServer();
