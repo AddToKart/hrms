@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Users,
   Calendar,
@@ -8,11 +8,12 @@ import {
   Menu,
   X,
   ChevronRight,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: Calendar },
+  { name: "Dashboard", href: "/dashboard", icon: Calendar },
   { name: "Employees", href: "/employees", icon: Users },
   { name: "Attendance", href: "/attendance", icon: Calendar },
   { name: "Leave Requests", href: "/leave-requests", icon: FileText },
@@ -22,6 +23,12 @@ const navigation = [
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // For demo purposes, just reload the page to reset auth state
+    window.location.href = "/login";
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -74,6 +81,18 @@ export default function Layout() {
             );
           })}
         </nav>
+
+        {/* Mobile Logout Button */}
+        <div className="absolute bottom-4 left-4 right-4">
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            className="w-full text-red-600 border-red-200 hover:bg-red-50"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Logout
+          </Button>
+        </div>
       </div>
 
       {/* Desktop sidebar */}
@@ -103,11 +122,22 @@ export default function Layout() {
               );
             })}
           </nav>
-          <div className="p-4">
+
+          {/* Desktop Help Section and Logout */}
+          <div className="p-4 space-y-4">
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
               <p className="text-xs font-medium text-blue-800">Need Help?</p>
               <p className="text-xs text-blue-600 mt-1">Contact support team</p>
             </div>
+
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="w-full text-red-600 border-red-200 hover:bg-red-50"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </Button>
           </div>
         </div>
       </div>
@@ -125,7 +155,14 @@ export default function Layout() {
               <Menu className="h-6 w-6" />
             </Button>
             <h1 className="text-lg font-semibold text-gray-900">HRMS</h1>
-            <div className="w-10"></div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              className="text-red-600"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
           </div>
         </div>
 
